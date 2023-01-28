@@ -2,16 +2,16 @@ from collections import OrderedDict, deque
 from heapq import heapify
 from queue import PriorityQueue
 
-directions = [
-    (-1, 0),
-    (-1, 1),
-    (0, 1),
-    (1, 1),
-    (1, 0),
-    (1, -1),
-    (0, -1),
-    (-1, -1)
-]
+directions = {
+    (-1, 0): 10,
+    (-1, 1): 14,
+    (0, 1): 10,
+    (1, 1): 14,
+    (1, 0): 10,
+    (1, -1): 14,
+    (0, -1): 10,
+    (-1, -1): 14
+}
 
 
 class Node:
@@ -19,6 +19,9 @@ class Node:
         self.value = value
         self.coords = coords
         self.children = []
+
+    def __lt__(self, _):
+        return True
 
 
 class Mountain:
@@ -39,22 +42,22 @@ class Mountain:
 
         for j in range(dim[0]):
             for i in range(dim[1]):
-                for k, l in directions:
+                for k, l in directions.keys():
                     if ((i + k) >= 0 and (j + l) >= 0 and (i + k) <= (dim[1] - 1) and (j + l) <= (dim[0] - 1)):
                         fut_elevation = self.terrain_map[i+k][j+l]
                         curr_elevation = abs(self.terrain_map[i][j])
 
                         if (fut_elevation < 0 and abs(fut_elevation) <= curr_elevation):
                             self.graph[(i, j)].children.append(
-                                (self.graph[(i + k, j + l)], 0))
+                                (self.graph[(i + k, j + l)], directions.get((k, l))))
 
                         if (fut_elevation >= 0 and fut_elevation <= curr_elevation):
                             self.graph[(i, j)].children.append(
-                                (self.graph[(i + k, j + l)], 0))
+                                (self.graph[(i + k, j + l)], directions.get((k, l))))
 
                         if (fut_elevation >= curr_elevation and fut_elevation - curr_elevation <= stamina):
                             self.graph[(i, j)].children.append(
-                                (self.graph[(i + k, j + l)], fut_elevation - curr_elevation))
+                                (self.graph[(i + k, j + l)], directions.get((k, l))))
 
         self.start_node = self.graph[(self.start[1], self.start[0])]
         self.end_nodes = [self.graph[(y, x)] for x, y in self.lodges]
@@ -142,17 +145,36 @@ def ucs(mountain: Mountain):
 
     for end_node in end_nodes:
         frontier = MyPriorityQueue()
-        frontier.put(0, start_node)
+        frontier.put((0, start_node))
         reached = set([start_node])
         parent = {}
 
-        while frontier.qsize != 0:
-            path_cost, node = frontier.get()
-            return True
+        while frontier.qsize() != 0:
+            node_path_cost, node = frontier.get()
 
-        return True
+            if node == end_node:
+                path = deque()
+                while (parent.get(node)):
+                    path.appendleft(node.coords)
+                    node = parent.get(node)
+                path.appendleft(node.coords)
+                # add path for end_node
+                paths[end_node.coords] = path
 
-    return True
+            for child, cost in node.children:
+                child_path_cost = node_path_cost + cost
+                if child not in reached:
+                    parent[child] = node
+                    reached.add(child)
+                    frontier.put((child_path_cost, child))
+                else:
+                    if frontier.change_priority(child_path_cost, child):
+                        parent[child] = node
+
+        if paths.get(end_node.coords) is None:
+            paths[end_node.coords] = "FAIL"
+
+    return paths
 
 
 def write_output(solution: OrderedDict):
@@ -174,5 +196,10 @@ def write_output(solution: OrderedDict):
 
 if __name__ == "__main__":
     algo, mountain = read_input()
-    paths = bfs(mountain=mountain)
+    func_map = {
+        "BFS": bfs,
+        "UCS": ucs
+    }
+
+    paths = func_map.get(algo)(mountain)
     write_output(paths)
