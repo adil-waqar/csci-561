@@ -1,5 +1,6 @@
 from collections import OrderedDict, deque
 from heapq import heapify
+from math import sqrt
 from queue import PriorityQueue
 
 directions = {
@@ -18,6 +19,7 @@ class Node:
     def __init__(self, value, coords) -> None:
         self.value = value
         self.coords = coords
+        self.momentum = 0
         self.children = []
 
     def __lt__(self, _):
@@ -47,32 +49,41 @@ class Mountain:
                         fut_elevation = self.terrain_map[i+k][j+l]
                         curr_elevation = abs(self.terrain_map[i][j])
 
-                        if (fut_elevation < 0 and abs(fut_elevation) <= curr_elevation):
-                            self.graph[(i, j)].children.append(
-                                (self.graph[(i + k, j + l)], directions.get((k, l))))
-
-                        if (fut_elevation >= 0 and fut_elevation <= curr_elevation):
-                            self.graph[(i, j)].children.append(
-                                (self.graph[(i + k, j + l)], directions.get((k, l))))
-
-                        if (fut_elevation >= curr_elevation and fut_elevation - curr_elevation <= stamina):
+                        if (not (fut_elevation < 0 and abs(fut_elevation) > curr_elevation)):
                             self.graph[(i, j)].children.append(
                                 (self.graph[(i + k, j + l)], directions.get((k, l))))
 
         self.start_node = self.graph[(self.start[1], self.start[0])]
         self.end_nodes = [self.graph[(y, x)] for x, y in self.lodges]
 
+    def calculate_heuristics(self):
+        self.heuristics = {}
+        for end_node in self.end_nodes:
+            self.heuristics[end_node] = {}
+            for coords, _ in self.graph.items():
+                self.heuristics[end_node][coords] = round(
+                    sqrt(
+                        pow(10 * coords[0] - 10 * end_node.coords[0], 2) +
+                        pow(10 * coords[1] - 10 * end_node.coords[1], 2))
+                )
+
 
 class MyPriorityQueue(PriorityQueue):
-    def change_priority(self, priority, item):
+    def change_priority(self, item, priority, actual_cost=0):
         for index in range(len(self.queue)):
-            if (self.queue[index][1] == item):
-                if (priority < self.queue[index][0]):
-                    self.queue[index] = (priority, item)
-                    heapify(self.queue)
-                    return True
-                else:
-                    return False
+            if actual_cost:
+                if (self.queue[index][2] == item):
+                    if (priority < self.queue[index][0] or (
+                            priority == self.queue[index][0] and actual_cost < self.queue[index][1])):
+                        self.queue[index] = (priority, actual_cost, item)
+                        heapify(self.queue)
+                        return True
+            else:
+                if (self.queue[index][1] == item):
+                    if (priority < self.queue[index][0]):
+                        self.queue[index] = (priority, item)
+                        heapify(self.queue)
+                        return True
         return False
 
 
@@ -126,7 +137,8 @@ def bfs(mountain: Mountain):
                     # add path for end_node
                     paths[end_node.coords] = path
 
-                if child not in reached:
+                elevation = abs(child.value) - abs(node.value)
+                if child not in reached and elevation <= mountain.stamina:
                     parent[child] = node
                     reached.add(child)
                     frontier.append(child)
@@ -162,18 +174,85 @@ def ucs(mountain: Mountain):
 
             for child, cost in node.children:
                 child_path_cost = node_path_cost + cost
-                if child not in reached:
+                elevation = abs(child.value) - abs(node.value)
+                if child not in reached and elevation <= mountain.stamina:
                     parent[child] = node
                     reached.add(child)
                     frontier.put((child_path_cost, child))
                 else:
-                    if frontier.change_priority(child_path_cost, child):
+                    if frontier.change_priority(child, child_path_cost):
                         parent[child] = node
 
         if paths.get(end_node.coords) is None:
             paths[end_node.coords] = "FAIL"
 
     return paths
+
+
+def a_star(mountain: Mountain):
+    start_node = mountain.start_node
+    end_nodes = mountain.end_nodes
+    paths = OrderedDict()
+
+    for end_node in end_nodes:
+        frontier = MyPriorityQueue()
+        frontier.put((0, 0, start_node))
+        reached = set([start_node])
+        parent = {}
+
+        while frontier.qsize() != 0:
+            _, node_path_cost, node = frontier.get()
+
+            if node == end_node:
+                path = deque()
+                while (parent.get(node)):
+                    path.appendleft(node.coords)
+                    node = parent.get(node)
+                path.appendleft(node.coords)
+                # add path for end_node
+                paths[end_node.coords] = path
+
+            for child, cost in node.children:
+                child_path_cost = node_path_cost + cost + \
+                    mountain.heuristics[end_node][child.coords]
+
+                if child not in reached and is_valid_move(child, node, mountain.stamina, node.momentum):
+                    parent[child] = node
+                    child.momentum = max(0, abs(node.value) - abs(child.value))
+                    child_path_cost += calc_elevation_cost(child, node)
+                    reached.add(child)
+                    frontier.put(
+                        (child_path_cost, node_path_cost + cost, child))
+                else:
+                    if frontier.change_priority(child, child_path_cost, node_path_cost + cost):
+                        parent[child] = node
+
+        if paths.get(end_node.coords) is None:
+            paths[end_node.coords] = "FAIL"
+
+    return paths
+
+
+def is_valid_move(child: Node, parent: Node, stamina, momentum):
+    curr_elevation = abs(parent.value)
+    future_elevation = abs(child.value)
+
+    if (curr_elevation >= future_elevation):
+        return True
+    if (curr_elevation < future_elevation and curr_elevation + stamina + momentum >= future_elevation):
+        return True
+
+    return True
+
+
+def calc_elevation_cost(child: Node, parent: Node):
+    curr_elevation = abs(parent.value)
+    future_elevation = abs(child.value)
+
+    if curr_elevation >= future_elevation:
+        return 0
+    else:
+        return future_elevation - curr_elevation - parent.momentum
 
 
 def write_output(solution: OrderedDict):
@@ -197,8 +276,12 @@ if __name__ == "__main__":
     algo, mountain = read_input()
     func_map = {
         "BFS": bfs,
-        "UCS": ucs
+        "UCS": ucs,
+        "A*": a_star
     }
+
+    if algo == "A*":
+        mountain.calculate_heuristics()
 
     paths = func_map.get(algo)(mountain)
     write_output(paths)
