@@ -128,19 +128,20 @@ def bfs(mountain: Mountain):
         while len(frontier):
             node = frontier.popleft()
             for child, _ in node.children:
-                if child == end_node:
-                    path = deque()
-                    while parent.get(child):
-                        path.appendleft(child.coords)
-                        child = parent.get(child)
-                    path.appendleft(child.coords)
-                    # add path for end_node
-                    paths[end_node.coords] = path
-
                 elevation = abs(child.value) - abs(node.value)
                 if child not in reached and elevation <= mountain.stamina:
                     parent[child] = node
                     reached.add(child)
+                    if child == end_node:
+                        path = deque()
+                        while parent.get(child):
+                            path.appendleft(child.coords)
+                            child = parent.get(child)
+                        path.appendleft(child.coords)
+                        # add path for end_node
+                        paths[end_node.coords] = path
+                        break
+
                     frontier.append(child)
 
         if paths.get(end_node.coords) is None:
