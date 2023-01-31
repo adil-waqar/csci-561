@@ -73,7 +73,6 @@ class MyPriorityQueue(PriorityQueue):
                     return True
                 else:
                     return False
-
         return False
 
 
