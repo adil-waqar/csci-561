@@ -216,7 +216,7 @@ def a_star(mountain: Mountain):
                 child_path_cost = node_path_cost + cost + \
                     mountain.heuristics[end_node][child.coords]
 
-                if child not in reached and is_valid_move(child, node, mountain.stamina, node.momentum):
+                if child not in reached and is_valid_move(child, node, mountain.stamina):
                     parent[child] = node
                     child.momentum = max(0, abs(node.value) - abs(child.value))
                     child_path_cost += calc_elevation_cost(child, node)
@@ -233,13 +233,13 @@ def a_star(mountain: Mountain):
     return paths
 
 
-def is_valid_move(child: Node, parent: Node, stamina, momentum):
+def is_valid_move(child: Node, parent: Node, stamina):
     curr_elevation = abs(parent.value)
     future_elevation = abs(child.value)
 
     if (curr_elevation >= future_elevation):
         return True
-    if (curr_elevation < future_elevation and curr_elevation + stamina + momentum >= future_elevation):
+    if (curr_elevation < future_elevation and curr_elevation + stamina + parent.momentum >= future_elevation):
         return True
 
     return True
