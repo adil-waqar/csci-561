@@ -223,7 +223,7 @@ def a_star(mountain: Mountain):
                     reached.add(child)
                     frontier.put(
                         (child_path_cost, node_path_cost + cost, child))
-                else:
+                elif (child in reached):
                     if frontier.change_priority(child, child_path_cost, node_path_cost + cost):
                         parent[child] = node
 
@@ -242,7 +242,7 @@ def is_valid_move(child: Node, parent: Node, stamina):
     if (curr_elevation < future_elevation and curr_elevation + stamina + parent.momentum >= future_elevation):
         return True
 
-    return True
+    return False
 
 
 def calc_elevation_cost(child: Node, parent: Node):
