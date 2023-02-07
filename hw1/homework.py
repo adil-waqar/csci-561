@@ -226,7 +226,7 @@ def a_star(mountain: Mountain):
 
                 momentum = max(0, abs(node.value) - abs(child.value))
 
-                if child in explored and child in reached and momentum > child.momentum:
+                if child in explored and momentum > child.momentum:
                     child = copy.copy(child)
 
                 if child not in explored and child not in reached and is_valid_move(child, node, mountain.stamina):
