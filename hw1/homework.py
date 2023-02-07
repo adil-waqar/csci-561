@@ -1,4 +1,5 @@
 from collections import OrderedDict, deque
+import copy
 from heapq import heapify
 from math import sqrt
 from queue import PriorityQueue
@@ -123,13 +124,14 @@ def bfs(mountain: Mountain):
     for end_node in end_nodes:
         frontier = deque([start_node])
         reached = set([start_node])
+        explored = set()
         parent = {}
 
         while len(frontier):
             node = frontier.popleft()
             for child, _ in node.children:
                 elevation = abs(child.value) - abs(node.value)
-                if child not in reached and elevation <= mountain.stamina:
+                if child not in explored and child not in reached and elevation <= mountain.stamina:
                     parent[child] = node
                     reached.add(child)
                     if child == end_node:
@@ -143,6 +145,7 @@ def bfs(mountain: Mountain):
                         break
 
                     frontier.append(child)
+            explored.add(node)
 
         if paths.get(end_node.coords) is None:
             paths[end_node.coords] = "FAIL"
@@ -159,6 +162,7 @@ def ucs(mountain: Mountain):
         frontier = MyPriorityQueue()
         frontier.put((0, start_node))
         reached = set([start_node])
+        explored = set()
         parent = {}
 
         while frontier.qsize() != 0:
@@ -176,13 +180,15 @@ def ucs(mountain: Mountain):
             for child, cost in node.children:
                 child_path_cost = node_path_cost + cost
                 elevation = abs(child.value) - abs(node.value)
-                if child not in reached and elevation <= mountain.stamina:
+                if child not in explored and child not in reached and elevation <= mountain.stamina:
                     parent[child] = node
                     reached.add(child)
                     frontier.put((child_path_cost, child))
-                else:
+                elif child not in explored and child in reached:
                     if frontier.change_priority(child, child_path_cost):
                         parent[child] = node
+
+            explored.add(node)
 
         if paths.get(end_node.coords) is None:
             paths[end_node.coords] = "FAIL"
@@ -199,6 +205,7 @@ def a_star(mountain: Mountain):
         frontier = MyPriorityQueue()
         frontier.put((0, 0, start_node))
         reached = set([start_node])
+        explored = set()
         parent = {}
 
         while frontier.qsize() != 0:
@@ -217,16 +224,23 @@ def a_star(mountain: Mountain):
                 child_path_cost = node_path_cost + cost + \
                     mountain.heuristics[end_node][child.coords]
 
-                if child not in reached and is_valid_move(child, node, mountain.stamina):
+                momentum = max(0, abs(node.value) - abs(child.value))
+
+                if child in explored and child in reached and momentum > child.momentum:
+                    child = copy.copy(child)
+
+                if child not in explored and child not in reached and is_valid_move(child, node, mountain.stamina):
                     parent[child] = node
-                    child.momentum = max(0, abs(node.value) - abs(child.value))
+                    child.momentum = momentum
                     child_path_cost += calc_elevation_cost(child, node)
                     reached.add(child)
                     frontier.put(
                         (child_path_cost, node_path_cost + cost, child))
-                elif (child in reached):
+                elif child not in explored and child in reached:
                     if frontier.change_priority(child, child_path_cost, node_path_cost + cost):
                         parent[child] = node
+
+            explored.add(node)
 
         if paths.get(end_node.coords) is None:
             paths[end_node.coords] = "FAIL"
