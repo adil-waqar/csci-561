@@ -92,7 +92,12 @@ class Pente:
                 intersections = self.get_empty_intersections()
                 # remove within 3 intersections coords
                 intersections = filter(
-                    lambda x, y: not (x >= 7 and x <= 11 and y >= 7 and y <= 11), intersections)
+                    lambda coord: not (
+                        coord[0] >= 7 and
+                        coord[0] <= 11 and
+                        coord[1] >= 7 and
+                        coord[1] <= 11),
+                    intersections)
                 return intersections
 
         return self.get_empty_intersections()
@@ -233,7 +238,7 @@ class Pente:
 
 
 class Player:
-    SEARCH_DEPTH = 1
+    SEARCH_DEPTH = 2
     PENTE_COL_LOOKUP = {
         0: 'A',
         1: 'B',
