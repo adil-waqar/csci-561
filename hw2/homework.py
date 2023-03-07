@@ -363,8 +363,6 @@ class Player:
     # check for x-pieces in a row
     def heuristic1(self):
         max = 0
-        player = Pente.WHITE if self.board.color == 'WHITE' else Pente.BLACK
-        opponent = Pente.WHITE if player == 'b' else Pente.WHITE
         for i in range(Pente.BOARD_SIZE):
             for j in range(Pente.BOARD_SIZE):
                 # skip occupied intersections
@@ -374,18 +372,18 @@ class Player:
                 # diagonal /
                 count = 0
                 # upper diagonal
-                if ((i - 4) > -1 and (i - 4) < Pente.BOARD_SIZE) and ((j + 4) > -1 and (j + 4) < Pente.BOARD_SIZE):
+                if ((i-4) > -1 and (i-4) < Pente.BOARD_SIZE) and ((j+4) > -1 and (j+4) < Pente.BOARD_SIZE):
                     for k in range(1, 5):
-                        if self.board.board[i - k][j + k] == opponent:
+                        if self.board.board[i-k][j+k] == self.oci:
                             break
-                        if self.board.board[i - k][j + k] == player:
+                        if self.board.board[i-k][j+k] == self.ci:
                             count += 1
                 # lower diagonal
-                if ((i + 4) > -1 and (i + 4) < Pente.BOARD_SIZE) and ((j - 4) > -1 and (j - 4) < Pente.BOARD_SIZE):
+                if ((i+4) > -1 and (i+4) < Pente.BOARD_SIZE) and ((j-4) > -1 and (j-4) < Pente.BOARD_SIZE):
                     for k in range(1, 5):
-                        if self.board.board[i + k][j - k] == opponent:
+                        if self.board.board[i+k][j-k] == self.oci:
                             break
-                        if self.board.board[i + k][j - k] == player:
+                        if self.board.board[i+k][j-k] == self.ci:
                             count += 1
                 if count > max:
                     max = count
@@ -393,18 +391,18 @@ class Player:
                 # diagonal \
                 count = 0
                 # upper diagonal
-                if ((i - 4) > -1 and (i - 4) < Pente.BOARD_SIZE) and ((j - 4) > -1 and (j - 4) < Pente.BOARD_SIZE):
+                if ((i-4) > -1 and (i-4) < Pente.BOARD_SIZE) and ((j-4) > -1 and (j-4) < Pente.BOARD_SIZE):
                     for k in range(1, 5):
-                        if self.board.board[i - k][j - k] == opponent:
+                        if self.board.board[i-k][j-k] == self.oci:
                             break
-                        if self.board.board[i - k][j - k] == player:
+                        if self.board.board[i-k][j-k] == self.ci:
                             count += 1
                 # lower diagonal
-                if ((i + 4) > -1 and (i + 4) < Pente.BOARD_SIZE) and ((j + 4) > -1 and (j + 4) < Pente.BOARD_SIZE):
+                if ((i+4) > -1 and (i+4) < Pente.BOARD_SIZE) and ((j+4) > -1 and (j+4) < Pente.BOARD_SIZE):
                     for k in range(1, 5):
-                        if self.board.board[i + k][j + k] == opponent:
+                        if self.board.board[i+k][j+k] == self.oci:
                             break
-                        if self.board.board[i + k][j + k] == player:
+                        if self.board.board[i+k][j+k] == self.ci:
                             count += 1
                 if count > max:
                     max = count
@@ -412,18 +410,18 @@ class Player:
                 # vertical |
                 count = 0
                 # upper
-                if i - 4 > -1:
+                if i-4 > -1:
                     for k in range(1, 5):
-                        if self.board.board[i - k][j] == opponent:
+                        if self.board.board[i-k][j] == self.oci:
                             break
-                        if self.board.board[i - k][j] == player:
+                        if self.board.board[i-k][j] == self.ci:
                             count += 1
                 # lower
-                if i + 4 < Pente.BOARD_SIZE:
+                if i+4 < Pente.BOARD_SIZE:
                     for k in range(1, 5):
-                        if self.board.board[i + k][j] == opponent:
+                        if self.board.board[i+k][j] == self.oci:
                             break
-                        if self.board.board[i + k][j] == player:
+                        if self.board.board[i+k][j] == self.ci:
                             count += 1
                 if count > max:
                     max = count
@@ -431,18 +429,18 @@ class Player:
                 # horizontal
                 count = 0
                 # right
-                if j + 4 < Pente.BOARD_SIZE:
+                if j+4 < Pente.BOARD_SIZE:
                     for k in range(1, 5):
-                        if self.board.board[i][j + k] == opponent:
+                        if self.board.board[i][j+k] == self.oci:
                             break
-                        if self.board.board[i][j + k] == player:
+                        if self.board.board[i][j+k] == self.ci:
                             count += 1
                 # left
-                if j - 4 > -1:
+                if j-4 > -1:
                     for k in range(1, 5):
-                        if self.board.board[i][j - k] == opponent:
+                        if self.board.board[i][j-k] == self.oci:
                             break
-                        if self.board.board[i][j - k] == player:
+                        if self.board.board[i][j-k] == self.ci:
                             count += 1
                 if count > max:
                     max = count
