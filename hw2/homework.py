@@ -84,18 +84,18 @@ class Pente:
             return self.b_cap >= 10
 
     def get_valid_moves(self):
-        player = self.getColorInitial()
+        player = self.get_color_initial()
         if player == Pente.WHITE:
             if self.move_num == 1:
                 return [(9, 9)]
             elif self.move_num == 2:
-                intersections = self.getEmptyIntersections()
+                intersections = self.get_empty_intersections()
                 # remove within 3 intersections coords
                 intersections = filter(
                     lambda x, y: not (x >= 7 and x <= 11 and y >= 7 and y <= 11), intersections)
                 return intersections
 
-        return self.getEmptyIntersections()
+        return self.get_empty_intersections()
 
     def make_move(self, move):
         self.board_history.append(copy.deepcopy(self.board))
@@ -219,10 +219,10 @@ class Pente:
                 self.b_cap += 2
             return True
 
-    def getColorInitial(self):
+    def get_color_initial(self):
         return Pente.WHITE if self.color == "WHITE" else Pente.BLACK
 
-    def getEmptyIntersections(self):
+    def get_empty_intersections(self):
         empty_intersection = []
         for x in range(Pente.BOARD_SIZE):
             for y in range(Pente.BOARD_SIZE):
@@ -285,12 +285,11 @@ class Player:
             f.write(self.best_move)
 
     def calc_move_num(self):
-        move_num = 0
+        move_num = 1
         for x in range(Pente.BOARD_SIZE):
             for y in range(Pente.BOARD_SIZE):
                 if self.board.board[x][y] != '.':
                     move_num += 1
-        move_num += 1
         return move_num
 
     def compute_move(self):
