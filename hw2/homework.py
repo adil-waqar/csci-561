@@ -84,8 +84,7 @@ class Pente:
             return self.b_cap >= 10
 
     def get_valid_moves(self):
-        player = self.get_color_initial()
-        if player == Pente.WHITE:
+        if self.ci == Pente.WHITE:
             if self.move_num == 1:
                 return [(9, 9)]
             elif self.move_num == 2:
@@ -108,6 +107,7 @@ class Pente:
         self.move_history.append(move)
 
         self.board[move[0]][move[1]] = self.ci
+        self.check_for_capture(move)
 
         self.move_num += 1
         self.ci, self.oci = self.oci, self.ci
@@ -123,7 +123,6 @@ class Pente:
 
     def check_for_capture(self, move):
         x, y = move
-
         # horizontal
         if y > 2 and \
                 self.board[x][y-1] == self.oci \
@@ -177,7 +176,7 @@ class Pente:
         if (x > 2 and y > 2 and
                 self.board[x-1][y-1] == self.oci and
                 self.board[x-2][y-2] == self.oci and
-                self.board[x-3][y-3] == player):
+                self.board[x-3][y-3] == self.ci):
             self.board[x-1][y-1] = '.'
             self.board[x-2][y-2] = '.'
 
@@ -224,16 +223,12 @@ class Pente:
                 self.b_cap += 2
             return True
 
-    def get_color_initial(self):
-        return Pente.WHITE if self.color == "WHITE" else Pente.BLACK
-
     def get_empty_intersections(self):
         empty_intersection = []
         for x in range(Pente.BOARD_SIZE):
             for y in range(Pente.BOARD_SIZE):
                 if self.board[x][y] == ".":
                     empty_intersection.append((x, y))
-
         return empty_intersection
 
 
@@ -281,9 +276,9 @@ class Player:
 
         self.board = Pente(board=board, color=color,
                            seconds_left=seconds_left, w_cap=w_cap, b_cap=b_cap, move_num=0)
-        self.board.move_num = self.calc_move_num()
         self.ci = Pente.WHITE if self.board.color == "WHITE" else Pente.BLACK
         self.oci = Pente.BLACK if self.board.color == "WHITE" else Pente.WHITE
+        self.board.move_num = self.calc_move_num()
 
     def write_output(self):
         with open("output.txt", "w") as f:
@@ -293,7 +288,7 @@ class Player:
         move_num = 1
         for x in range(Pente.BOARD_SIZE):
             for y in range(Pente.BOARD_SIZE):
-                if self.board.board[x][y] != '.':
+                if self.board.board[x][y] == self.ci:
                     move_num += 1
         return move_num
 
@@ -312,7 +307,7 @@ class Player:
 
     def alpha_beta_max(self, alpha, beta, depth):
         if self.board.check_game_end():
-            return float("inf") if self.board.winner == self.ci else float("-inf")
+            return (float("inf"), self.board.move_history[-1]) if self.board.winner == self.ci else (float("-inf"), self.board.move_history[-1])
         if not depth:
             return (self.heuristic1(), self.board.move_history[-1])
 
@@ -337,7 +332,7 @@ class Player:
 
     def alpha_beta_min(self, alpha, beta, depth):
         if self.board.check_game_end():
-            return float("inf") if self.board.winner == self.ci else float("-inf")
+            return (float("inf"), self.board.move_history[-1]) if self.board.winner == self.ci else (float("-inf"), self.board.move_history[-1])
         if not depth:
             return (self.heuristic1(), self.board.move_history[-1])
 
