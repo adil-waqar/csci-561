@@ -233,7 +233,7 @@ class Pente:
 
 
 class Player:
-    SEARCH_DEPTH = 2
+    SEARCH_DEPTH = 1
     PENTE_COL_LOOKUP = {
         0: 'A',
         1: 'B',
@@ -259,7 +259,7 @@ class Player:
     def __init__(self):
         self.board: Pente
         self.ci: str
-        self.best_move: str
+        self.best_move: str = None
 
     def read_input(self):
         with open("input.txt", "r") as f:
@@ -279,6 +279,8 @@ class Player:
         self.ci = Pente.WHITE if self.board.color == "WHITE" else Pente.BLACK
         self.oci = Pente.BLACK if self.board.color == "WHITE" else Pente.WHITE
         self.board.move_num = self.calc_move_num()
+        self.ci_cap = self.board.w_cap if self.ci == Pente.WHITE else self.board.b_cap
+        self.oci_cap = self.board.w_cap if self.oci == Pente.WHITE else self.board.w_cap
 
     def write_output(self):
         with open("output.txt", "w") as f:
@@ -294,7 +296,8 @@ class Player:
 
     def compute_move(self):
         coord = self.alpha_beta_search(Player.SEARCH_DEPTH)
-        self.best_move = self.coord_to_pent(coord)
+        if coord:
+            self.best_move = self.coord_to_pent(coord)
 
     def coord_to_pent(self, coord):
         row = str(Pente.BOARD_SIZE - coord[0])
@@ -307,9 +310,9 @@ class Player:
 
     def alpha_beta_max(self, alpha, beta, depth):
         if self.board.check_game_end():
-            return (float("inf"), self.board.move_history[-1]) if self.board.winner == self.ci else (float("-inf"), self.board.move_history[-1])
+            return (float("inf"), None) if self.board.winner == self.ci else (float("-inf"), None)
         if not depth:
-            return (self.heuristic1(), self.board.move_history[-1])
+            return (self.eval(), self.board.move_history[-1])
 
         best_move = None
         best_value = float("-inf")
@@ -332,9 +335,9 @@ class Player:
 
     def alpha_beta_min(self, alpha, beta, depth):
         if self.board.check_game_end():
-            return (float("inf"), self.board.move_history[-1]) if self.board.winner == self.ci else (float("-inf"), self.board.move_history[-1])
+            return (float("inf"), None) if self.board.winner == self.ci else (float("-inf"), None)
         if not depth:
-            return (self.heuristic1(), self.board.move_history[-1])
+            return (self.eval(), self.board.move_history[-1])
 
         best_move = None
         best_value = float("inf")
@@ -441,6 +444,240 @@ class Player:
                     max = count
         return max
 
+    # block enemy capture
+    def heuristic2(self):
+        ec_count = 0
+        for x in range(Pente.BOARD_SIZE):
+            for y in range(Pente.BOARD_SIZE):
+                if y > 2 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x][y-1] == self.ci \
+                        and self.board.board[x][y-2] == self.ci \
+                        and self.board.board[x][y-3] == self.oci:
+                    ec_count += 2
+
+                if y < Pente.BOARD_SIZE - 3 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x][y+1] == self.ci \
+                        and self.board.board[x][y+2] == self.ci \
+                        and self.board.board[x][y+3] == self.oci:
+                    ec_count += 2
+
+                # vertical
+                if x > 2 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x-1][y] == self.ci \
+                        and self.board.board[x-2][y] == self.ci \
+                        and self.board.board[x-3][y] == self.oci:
+                    ec_count += 2
+
+                if x < Pente.BOARD_SIZE - 3 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x+1][y] == self.ci \
+                        and self.board.board[x+2][y] == self.ci \
+                        and self.board.board[x+3][y] == self.oci:
+                    ec_count += 2
+
+                # check diagonal captures
+                if (x > 2 and y > 2 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x-1][y-1] == self.ci and
+                        self.board.board[x-2][y-2] == self.ci and
+                        self.board.board[x-3][y-3] == self.oci):
+                    ec_count += 2
+
+                if (x < Pente.BOARD_SIZE - 3 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x+1][y+1] == self.ci and
+                        self.board.board[x+2][y+2] == self.ci and
+                        self.board.board[x+3][y+3] == self.oci):
+                    ec_count += 2
+
+                # check other diagonal captures
+                if (x > 2 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x-1][y+1] == self.ci and
+                        self.board.board[x-2][y+2] == self.ci and
+                        self.board.board[x-3][y+3] == self.oci):
+                    ec_count += 2
+
+                if (x < Pente.BOARD_SIZE - 3 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x+1][y-1] == self.ci and
+                        self.board.board[x+2][y-2] == self.ci and
+                        self.board.board[x+3][y-3] == self.oci):
+                    ec_count += 2
+
+        return ec_count
+
+    # check for opponent getting x in a row
+    def heuristic3(self):
+        max = 0
+        for i in range(Pente.BOARD_SIZE):
+            for j in range(Pente.BOARD_SIZE):
+                # skip occupied intersections
+                if self.board.board[i][j] != '.':
+                    continue
+                # check for bounds
+                # diagonal /
+                count = 0
+                # upper diagonal
+                if ((i-4) > -1 and (i-4) < Pente.BOARD_SIZE) and ((j+4) > -1 and (j+4) < Pente.BOARD_SIZE):
+                    for k in range(1, 5):
+                        if self.board.board[i-k][j+k] == self.ci:
+                            break
+                        if self.board.board[i-k][j+k] == self.oci:
+                            count += 1
+                # lower diagonal
+                if ((i+4) > -1 and (i+4) < Pente.BOARD_SIZE) and ((j-4) > -1 and (j-4) < Pente.BOARD_SIZE):
+                    for k in range(1, 5):
+                        if self.board.board[i+k][j-k] == self.ci:
+                            break
+                        if self.board.board[i+k][j-k] == self.oci:
+                            count += 1
+                if count > max:
+                    max = count
+
+                # diagonal \
+                count = 0
+                # upper diagonal
+                if ((i-4) > -1 and (i-4) < Pente.BOARD_SIZE) and ((j-4) > -1 and (j-4) < Pente.BOARD_SIZE):
+                    for k in range(1, 5):
+                        if self.board.board[i-k][j-k] == self.ci:
+                            break
+                        if self.board.board[i-k][j-k] == self.oci:
+                            count += 1
+                # lower diagonal
+                if ((i+4) > -1 and (i+4) < Pente.BOARD_SIZE) and ((j+4) > -1 and (j+4) < Pente.BOARD_SIZE):
+                    for k in range(1, 5):
+                        if self.board.board[i+k][j+k] == self.ci:
+                            break
+                        if self.board.board[i+k][j+k] == self.oci:
+                            count += 1
+                if count > max:
+                    max = count
+
+                # vertical |
+                count = 0
+                # upper
+                if i-4 > -1:
+                    for k in range(1, 5):
+                        if self.board.board[i-k][j] == self.ci:
+                            break
+                        if self.board.board[i-k][j] == self.oci:
+                            count += 1
+                # lower
+                if i+4 < Pente.BOARD_SIZE:
+                    for k in range(1, 5):
+                        if self.board.board[i+k][j] == self.ci:
+                            break
+                        if self.board.board[i+k][j] == self.oci:
+                            count += 1
+                if count > max:
+                    max = count
+
+                # horizontal
+                count = 0
+                # rightc
+                if j+4 < Pente.BOARD_SIZE:
+                    for k in range(1, 5):
+                        if self.board.board[i][j+k] == self.ci:
+                            break
+                        if self.board.board[i][j+k] == self.oci:
+                            count += 1
+                # left
+                if j-4 > -1:
+                    for k in range(1, 5):
+                        if self.board.board[i][j-k] == self.ci:
+                            break
+                        if self.board.board[i][j-k] == self.oci:
+                            count += 1
+                if count > max:
+                    max = count
+
+        return max
+
+    # encourage own capture
+    def heuristic4(self):
+        c_count = 0
+        for x in range(Pente.BOARD_SIZE):
+            for y in range(Pente.BOARD_SIZE):
+                if y > 2 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x][y-1] == self.oci \
+                        and self.board.board[x][y-2] == self.oci \
+                        and self.board.board[x][y-3] == self.ci:
+                    c_count += 2
+
+                if y < Pente.BOARD_SIZE - 3 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x][y+1] == self.oci \
+                        and self.board.board[x][y+2] == self.oci \
+                        and self.board.board[x][y+3] == self.ci:
+                    c_count += 2
+
+                # vertical
+                if x > 2 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x-1][y] == self.oci \
+                        and self.board.board[x-2][y] == self.oci \
+                        and self.board.board[x-3][y] == self.ci:
+                    c_count += 2
+
+                if x < Pente.BOARD_SIZE - 3 and \
+                        self.board.board[x][y] == '.' and \
+                        self.board.board[x+1][y] == self.oci \
+                        and self.board.board[x+2][y] == self.oci \
+                        and self.board.board[x+3][y] == self.ci:
+                    c_count += 2
+
+                # check diagonal captures
+                if (x > 2 and y > 2 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x-1][y-1] == self.oci and
+                        self.board.board[x-2][y-2] == self.oci and
+                        self.board.board[x-3][y-3] == self.ci):
+                    c_count += 2
+
+                if (x < Pente.BOARD_SIZE - 3 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x+1][y+1] == self.oci and
+                        self.board.board[x+2][y+2] == self.oci and
+                        self.board.board[x+3][y+3] == self.ci):
+                    c_count += 2
+
+                # check other diagonal captures
+                if (x > 2 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x-1][y+1] == self.oci and
+                        self.board.board[x-2][y+2] == self.oci and
+                        self.board.board[x-3][y+3] == self.ci):
+                    c_count += 2
+
+                if (x < Pente.BOARD_SIZE - 3 and y < Pente.BOARD_SIZE - 3 and
+                        self.board.board[x][y] == '.' and
+                        self.board.board[x+1][y-1] == self.oci and
+                        self.board.board[x+2][y-2] == self.oci and
+                        self.board.board[x+3][y-3] == self.ci):
+                    c_count += 2
+
+        return c_count
+
+    # check for own cap pt2
+    def heuristic5(self):
+        return self.ci_cap
+
+    def heuristic6(self):
+        return self.oci_cap
+
+    def eval(self):
+        heu1 = float(self.heuristic1())
+        heu2 = float(self.heuristic5())
+        heu3 = float(self.heuristic2())
+        heu4 = float(self.heuristic3())
+
+        return (heu1 + heu2) - (1.2 * heu3) - (1.2 * heu4)
+
 
 if __name__ == "__main__":
     player = Player()
@@ -448,6 +685,7 @@ if __name__ == "__main__":
     t1_start = process_time()
     player.compute_move()
     t1_stop = process_time()
-    player.write_output()
-    print(player.best_move)
     print("time: ", round(t1_stop - t1_start))
+    if player.best_move:
+        player.write_output()
+        print(player.best_move)
