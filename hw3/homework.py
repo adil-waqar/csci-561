@@ -235,7 +235,7 @@ class Restaurant:
                 unifier_rev[ac2] = ac1
         return True, unifier, unifier_rev
 
-    def resolution(self):
+    def resolve(self):
         unified_pairs = {}
         while True:
             query = self.literal_stack.pop()
@@ -315,5 +315,5 @@ class Restaurant:
 
 if __name__ == "__main__":
     restaurant = Restaurant()
-    answer = restaurant.resolution()
+    answer = restaurant.resolve()
     restaurant.write_output(answer)
