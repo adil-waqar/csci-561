@@ -76,6 +76,13 @@ class Sentence:
         self.constant = self.is_constant()
         self.ground_literal = self.is_ground_literal()
 
+    def has_predicate(self, pred: Predicate):
+        for predicate in self.preds:
+            if (predicate == pred):
+                return True
+
+        return False
+
     def reassign_pred_ids(self):
         for idx, pred in enumerate(self.preds):
             pred.update_id(idx)
@@ -243,58 +250,75 @@ class Restaurant:
             query = self.literal_stack.pop()
             self.literal_stack.appendleft(query)
 
-            if query.sent_id not in unified_pairs:
-                unified_pairs[query.sent_id] = []
+            if query.id not in unified_pairs:
+                unified_pairs[query.id] = []
 
-            if query.sent_id not in new_clauses_map:
-                new_clauses_map[query.sent_id] = -1
+            if query.id not in new_clauses_map:
+                new_clauses_map[query.id] = -1
 
-            unifications = [
-                pred for pred in self.KDict[query.name] if pred.compliment_of(query)]
+            for query_pred in query.preds:
+                unifications = [
+                    pred for pred in self.KDict[query_pred.name] if pred.compliment_of(query_pred)]
 
             new_clauses = 0
             for predicate in unifications:
-                if predicate.sent_id in unified_pairs[query.sent_id]:
+                if predicate.sent_id in unified_pairs[query.id]:
                     continue
-                can_unify, u1, u2 = self.unify(predicate, query)
 
-                sentence = self.KBase.sentences[predicate.sent_id]
-                if can_unify or can_unify == None:
+                sentence: Sentence = self.KBase.sentences[predicate.sent_id]
+                unification_tracker = []
+                for sentence_pred in sentence.preds:
+                    for query_pred in query.preds:
+                        if sentence_pred.name == query_pred.name and sentence_pred.compliment_of(query_pred):
+                            can_unify, u1, u2 = self.unify(sentence_pred, query_pred)
+                            if can_unify or can_unify == None:
+                                unification_tracker.append((sentence_pred, query_pred, can_unify, u1, u2))
+
+                if (len(unification_tracker) > 0):
                     sentence_copy = deepcopy(sentence)
-                    if can_unify:
-                        sentence_copy.substitute_args(u1)
-                    sentence_copy.remove_predicate(predicate)
-                    if sentence_copy.is_empty():
-                        print('Contradiction found: ',
-                              sentence, '\t', query)
+                    query_copy = deepcopy(query)
+                    for sentence_pred, query_pred, can_unify, u1, u2 in unification_tracker:
+                        if can_unify:
+                            sentence_copy.substitute_args(u1)
+                            query_copy.substitute_args(u2)
+
+                        if (not query_copy.has_predicate(query_pred) or not sentence_copy.has_predicate(sentence_pred)):
+                            continue
+
+                        sentence_copy.remove_predicate(sentence_pred)
+                        query_copy.remove_predicate(query_pred)
+
+                    new_sentence = Sentence(sentence_copy.preds + query_copy.preds, self.k)
+                    if new_sentence.is_empty():
+                        print('Contradiction found: ', sentence, '\t', query)
                         return True
-                    sentence_copy.reassign_pred_ids()
-                    sentence_copy.update_sentence_id(self.k)
 
-                    if (self.find_by_sentence(sentence_copy)):
+                    new_sentence.reassign_pred_ids()
+                    new_sentence.update_sentence_id(self.k)
+
+                    if self.find_by_sentence(new_sentence):
                         continue
-                    print('unifying: ', query, '\tand\t ',
-                          sentence, '\tresult\t', sentence_copy)
+                    print('unifying: ', query, '\tand\t ', sentence, '\tresult:\t', new_sentence)
                     new_clauses += 1
-                    self.KBase.inject(sentence_copy)
-                    self.inject_k_dict(sentence_copy)
+                    self.KBase.inject(new_sentence)
+                    self.inject_k_dict(new_sentence)
                     self.k += 1
-                    sentence_copy.is_ground_literal()
-                    if sentence_copy.ground_literal | len(sentence_copy.preds) == 1:
-                        self.literal_stack.append(sentence_copy.preds[0])
+                    new_sentence.is_ground_literal()
+                    if new_sentence.ground_literal | len(new_sentence.preds) <= 2:
+                        self.literal_stack.append(new_sentence)
 
-                unified_pairs[query.sent_id].append(sentence.id)
+                unified_pairs[query.id].append(sentence.id)
 
-            new_clauses_map[query.sent_id] = new_clauses
+            new_clauses_map[query.id] = new_clauses
             if self.no_new_clauses(new_clauses_map):
                 print("cannot infer anything else")
                 return False
 
-    def gen_literal_stack(self) -> Deque[Predicate]:
+    def gen_literal_stack(self) -> Deque[Sentence]:
         ls = deque([])
         for sentence in self.KBase.sentences:
             if len(sentence.preds) == 1:
-                ls.append(sentence.preds[0])
+                ls.append(sentence)
         return ls
 
     def negate_query(self):
@@ -328,6 +352,13 @@ class Restaurant:
 
     def no_new_clauses(self, dict: Dict[str, int]):
         return all([not dict[key] for key in dict.keys()])
+
+    def pp_kdict(self):
+        print("printing kdict")
+        for key in self.KDict.keys():
+            print('key: ', key)
+            for pred in self.KDict[key]:
+                print(str(pred) + ' ' + str(pred.sent_id))
 
 
 if __name__ == "__main__":
