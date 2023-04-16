@@ -237,14 +237,22 @@ class Restaurant:
 
     def resolve(self):
         unified_pairs = {}
+        new_clauses_map = {}
+
         while True:
             query = self.literal_stack.pop()
+            self.literal_stack.appendleft(query)
+
             if query.sent_id not in unified_pairs:
                 unified_pairs[query.sent_id] = []
-            self.literal_stack.appendleft(query)
+
+            if query.sent_id not in new_clauses_map:
+                new_clauses_map[query.sent_id] = -1
+
             unifications = [
                 pred for pred in self.KDict[query.name] if pred.compliment_of(query)]
 
+            new_clauses = 0
             for predicate in unifications:
                 if predicate.sent_id in unified_pairs[query.sent_id]:
                     continue
@@ -267,6 +275,7 @@ class Restaurant:
                         continue
                     print('unifying: ', query, '\tand\t ',
                           sentence, '\tresult\t', sentence_copy)
+                    new_clauses += 1
                     self.KBase.inject(sentence_copy)
                     self.inject_k_dict(sentence_copy)
                     self.k += 1
@@ -275,6 +284,11 @@ class Restaurant:
                         self.literal_stack.append(sentence_copy.preds[0])
 
                 unified_pairs[query.sent_id].append(sentence.id)
+
+            new_clauses_map[query.sent_id] = new_clauses
+            if self.no_new_clauses(new_clauses_map):
+                print("cannot infer anything else")
+                return False
 
     def gen_literal_stack(self) -> Deque[Predicate]:
         ls = deque([])
@@ -311,6 +325,9 @@ class Restaurant:
     def write_output(self, answer: bool):
         with open("output.txt", "w") as f:
             f.write(str(answer).upper())
+
+    def no_new_clauses(self, dict: Dict[str, int]):
+        return all([not dict[key] for key in dict.keys()])
 
 
 if __name__ == "__main__":
