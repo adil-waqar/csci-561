@@ -24,9 +24,9 @@ class Predicate:
         return ('~' if self.neg else '')+self.name+'('+','.join(self.args)+')'
 
     def __eq__(self, o: object) -> bool:
-        if len(self.args) != len(o.args):
-            return False
         if not isinstance(o, type(self)):
+            return False
+        if len(self.args) != len(o.args):
             return False
         if self.name != o.name:
             return False
@@ -56,6 +56,16 @@ class Predicate:
         self.args = [arg if arg not in mapping else mapping[arg]
                      for arg in self.args]
         self.ground_literal = self.is_ground_literal()
+
+    def get_duplicate_args(self):
+        args = []
+        dup_args = set()
+        for arg in self.args:
+            if arg in args:
+                dup_args.add(arg)
+            args.append(arg)
+
+        return dup_args
 
 
 class Sentence:
@@ -225,6 +235,26 @@ class Restaurant:
             return False, {}, {}
         if len(cl1.args) != len(cl2.args):
             return False, {}, {}
+
+        dup_args_cl1 = cl1.get_duplicate_args()
+        dup_args_cl2 = cl2.get_duplicate_args()
+
+        if len(dup_args_cl1) > 0:
+            dup_y = []
+            for x, y in zip(cl1.args, cl2.args):
+                if x in dup_args_cl1:
+                    dup_y.append(y)
+            if len(set(dup_y)) != 1:
+                return False, {}, {}
+
+        if len(dup_args_cl2) > 0:
+            dup_x = []
+            for x, y in zip(cl1.args, cl2.args):
+                if y in dup_args_cl2:
+                    dup_x.append(x)
+            if len(set(dup_x)) != 1:
+                return False, {}, {}
+
         unifier = {}
         unifier_rev = {}
         for ac1, ac2 in zip(cl1.args, cl2.args):
