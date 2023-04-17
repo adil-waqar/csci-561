@@ -123,7 +123,6 @@ class Sentence:
 class KB:
     def __init__(self, sentences: List[str] = []) -> None:
         self.sentences = self.populate(sentences)
-        self.pp_kb()
 
     def inject(self, sentence: Sentence):
         self.sentences.append(sentence)
@@ -328,7 +327,7 @@ class Restaurant:
 
                     if self.find_by_sentence(new_sentence):
                         continue
-                    print('unifying: ', query, '\tand\t ', sentence, '\tresult:\t', new_sentence)
+                    # print('unifying: ', query, '\tand\t ', sentence, '\tresult:\t', new_sentence)
                     new_clauses += 1
                     self.KBase.inject(new_sentence)
                     self.inject_k_dict(new_sentence)
@@ -341,7 +340,7 @@ class Restaurant:
 
             new_clauses_map[query.id] = new_clauses
             if self.no_new_clauses(new_clauses_map):
-                print("cannot infer anything else")
+                print("Cannot infer anything new")
                 return False
 
     def gen_literal_stack(self) -> Deque[Sentence]:
