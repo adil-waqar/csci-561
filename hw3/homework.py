@@ -161,7 +161,6 @@ class Sentence:
 class KB:
     def __init__(self, sentences: List[str] = []) -> None:
         self.sentences = self.populate(sentences)
-        self.pp_kb()
 
     def inject(self, sentence: Sentence):
         self.sentences.append(sentence)
