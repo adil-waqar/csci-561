@@ -61,11 +61,17 @@ class Predicate:
         args = []
         dup_args = set()
         for arg in self.args:
-            if arg in args:
-                dup_args.add(arg)
-            args.append(arg)
-
+            if arg[0].islower():
+                if arg in args:
+                    dup_args.add(arg)
+                args.append(arg)
         return dup_args
+
+    def counter_of(self, pred):
+        if self.name == pred.name and self.args == pred.args and self.compliment_of(pred):
+            return True
+        else:
+            return False
 
 
 class Sentence:
@@ -86,9 +92,14 @@ class Sentence:
         self.constant = self.is_constant()
         self.ground_literal = self.is_ground_literal()
 
+    def get_predicate(self, predicate: Predicate):
+        for pred in self.preds:
+            if str(pred) == str(predicate):
+                return pred
+
     def has_predicate(self, pred: Predicate):
         for predicate in self.preds:
-            if (predicate == pred):
+            if (str(predicate) == str(pred)):
                 return True
 
         return False
@@ -119,10 +130,36 @@ class Sentence:
     def is_empty(self):
         return True if len(self.preds) == 0 else False
 
+    def remove_compliments(self):
+        counter_preds = []
+        for i in range(0, len(self.preds)):
+            for j in range(0, len(self.preds)):
+                if self.preds[i].counter_of(self.preds[j]):
+                    counter_preds.append(self.preds[i])
+                    counter_preds.append(self.preds[j])
+
+        if len(counter_preds) == len(self.preds):
+            for counter_pred in counter_preds:
+                self.remove_predicate(counter_pred)
+
+            self.reassign_pred_ids()
+
+    def remove_duplicate_predicates(self):
+        preds = []
+        dup_pred_ids = []
+        for pred in self.preds:
+            if str(pred) in preds:
+                dup_pred_ids.append(pred.pred_id)
+            else:
+                preds.append(str(pred))
+
+        self.preds = [pred for pred in self.preds if pred.pred_id not in dup_pred_ids]
+
 
 class KB:
     def __init__(self, sentences: List[str] = []) -> None:
         self.sentences = self.populate(sentences)
+        self.pp_kb()
 
     def inject(self, sentence: Sentence):
         self.sentences.append(sentence)
@@ -286,8 +323,8 @@ class Restaurant:
                 new_clauses_map[query.id] = -1
 
             for query_pred in query.preds:
-                unifications = [
-                    pred for pred in self.KDict[query_pred.name] if pred.compliment_of(query_pred)]
+                unifications = [pred for pred in self.KDict[query_pred.name]
+                                if pred.compliment_of(query_pred) and pred.sent_id != query_pred.sent_id]
 
             new_clauses = 0
             for predicate in unifications:
@@ -307,17 +344,28 @@ class Restaurant:
                     sentence_copy = deepcopy(sentence)
                     query_copy = deepcopy(query)
                     for sentence_pred, query_pred, can_unify, u1, u2 in unification_tracker:
+                        if (not query_copy.has_predicate(query_pred) or not sentence_copy.has_predicate(sentence_pred)):
+                            continue
+
+                        newSentPred = sentence_copy.get_predicate(sentence_pred)
+                        newQrPred = query_copy.get_predicate(query_pred)
+                        can_unify_1, _, _ = self.unify(newSentPred, newQrPred)
+
+                        if can_unify_1 == False:
+                            continue
+
                         if can_unify:
                             sentence_copy.substitute_args(u1)
                             query_copy.substitute_args(u2)
-
-                        if (not query_copy.has_predicate(query_pred) or not sentence_copy.has_predicate(sentence_pred)):
-                            continue
 
                         sentence_copy.remove_predicate(sentence_pred)
                         query_copy.remove_predicate(query_pred)
 
                     new_sentence = Sentence(sentence_copy.preds + query_copy.preds, self.k)
+                    new_sentence.remove_compliments()
+                    new_sentence.reassign_pred_ids()
+                    new_sentence.remove_duplicate_predicates()
+
                     if new_sentence.is_empty():
                         print('Contradiction found: ', sentence, '\t', query)
                         return True
@@ -327,7 +375,7 @@ class Restaurant:
 
                     if self.find_by_sentence(new_sentence):
                         continue
-                    # print('unifying: ', query, '\tand\t ', sentence, '\tresult:\t', new_sentence)
+                    print('unifying: ', query, '\tand\t ', sentence, '\tresult:\t', new_sentence)
                     new_clauses += 1
                     self.KBase.inject(new_sentence)
                     self.inject_k_dict(new_sentence)
